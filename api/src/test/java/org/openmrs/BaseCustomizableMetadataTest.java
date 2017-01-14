@@ -13,7 +13,9 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.openmrs.api.ProviderService;
+import org.openmrs.api.ValidationException;
 import org.openmrs.api.context.Context;
+import org.openmrs.attribute.Attribute;
 import org.openmrs.test.BaseContextSensitiveTest;
 
 import java.util.Set;
@@ -26,7 +28,7 @@ public class BaseCustomizableMetadataTest extends BaseContextSensitiveTest {
 	private static final String PROVIDER_ATTRIBUTE_TYPES_XML = "org/openmrs/api/include/ProviderServiceTest-providerAttributes.xml";
 	
 	private static final String EXTRA_ATTRIBUTE_TYPES_XML = "org/openmrs/api/include/BaseCustomizableMetadataTest-attributesAndTypes.xml";
-	
+
 	private ProviderService service;
 	
 	@Before
@@ -53,7 +55,6 @@ public class BaseCustomizableMetadataTest extends BaseContextSensitiveTest {
 		ProviderAttributeType place = service.getProviderAttributeType(3);
 		provider.setAttribute(buildProviderAttribute(place, "bangalore"));
 		provider.setAttribute(buildProviderAttribute(place, "chennai"));
-		
 		Assert.assertEquals(1, provider.getAttributes().size());
 		
 		service.saveProvider(provider);
@@ -64,7 +65,7 @@ public class BaseCustomizableMetadataTest extends BaseContextSensitiveTest {
 		ProviderAttribute lastAttribute = (ProviderAttribute) provider.getAttributes().toArray()[0];
 		Assert.assertTrue(lastAttribute.getVoided());
 	}
-	
+
 	/**
 	 * @verifies work for attributes with datatypes whose values are stored in other tables
 	 * @see org.openmrs.BaseCustomizableMetadata#setAttribute(org.openmrs.attribute.Attribute)
@@ -90,7 +91,45 @@ public class BaseCustomizableMetadataTest extends BaseContextSensitiveTest {
 		ProviderAttribute lastAttribute = (ProviderAttribute) provider.getAttributes().toArray()[0];
 		Assert.assertTrue(lastAttribute.getVoided());
 	}
-	
+
+	/**
+	 * @verifies that if minOccurs >= 1, setAttribute should throw ValidationException
+	 * @see BaseCustomizableMetadata#setAttribute(Attribute)
+	 */
+	@Test(expected = ValidationException.class)
+	public void setAttribute_shouldFailIfMinOccursGreaterThan1() {
+		Provider provider1 = new Provider();
+		provider1.setIdentifier("test");
+
+		provider1.setPerson(newPerson("name"));
+
+		ProviderAttributeType minOccurs = service.getProviderAttributeType(5);
+		try {
+			provider1.setAttribute(buildProviderAttribute(minOccurs, "test"));
+		} catch (Exception e) {
+			Assert.assertEquals(ValidationException.class, e.getClass());
+		}
+	}
+
+	/**
+	 * @verifies that if maxOccurs != 1, setAttribute should throw ValidationException
+	 * @see BaseCustomizableMetadata#setAttribute(Attribute)
+	 */
+	@Test
+	public void setAttribute_shouldFailIfMaxOccursIsNot1() {
+		Provider provider2 = new Provider();
+		provider2.setIdentifier("test2");
+
+		provider2.setPerson(newPerson("test2"));
+
+		ProviderAttributeType maxOccurs = service.getProviderAttributeType(6);
+		try {
+			provider2.setAttribute(buildProviderAttribute(maxOccurs, "test"));
+		} catch (Exception e) {
+			Assert.assertEquals(ValidationException.class, e.getClass());
+		}
+	}
+
 	private ProviderAttribute buildProviderAttribute(ProviderAttributeType providerAttributeType, Object value)
 	        throws Exception {
 		ProviderAttribute providerAttribute = new ProviderAttribute();

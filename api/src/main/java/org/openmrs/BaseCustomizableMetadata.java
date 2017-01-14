@@ -15,7 +15,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.openmrs.api.ValidationException;
 import org.openmrs.attribute.Attribute;
+import org.openmrs.attribute.AttributeType;
 import org.openmrs.customdatatype.CustomValueDescriptor;
 import org.openmrs.customdatatype.Customizable;
 
@@ -89,8 +91,6 @@ public abstract class BaseCustomizableMetadata<A extends Attribute> extends Base
 	
 	/**
 	 * Convenience method that voids all existing attributes of the given type, and sets this new one.
-	 * TODO fail if minOccurs &gt; 1
-	 * TODO decide whether this should require maxOccurs=1
 	 * @should void the attribute if an attribute with same attribute type already exists and the maxOccurs is set to 1
 	 * @should work for attributes with datatypes whose values are stored in other tables
 	 *
@@ -101,7 +101,16 @@ public abstract class BaseCustomizableMetadata<A extends Attribute> extends Base
 			addAttribute(attribute);
 			return;
 		}
-		
+
+		AttributeType at = attribute.getAttributeType();
+		if (at.getMinOccurs() > 1) {
+			throw new ValidationException("Minimum occurrences cannot be greater than 1");
+		} else if (at.getMaxOccurs() != null) {
+			if (at.getMaxOccurs() != 1) {
+				throw new ValidationException("Maximum occurrences must be equal to 1");
+			}
+		}
+
 		if (getActiveAttributes(attribute.getAttributeType()).size() == 1) {
 			A existing = getActiveAttributes(attribute.getAttributeType()).get(0);
 			if (existing.getValue().equals(attribute.getValue())) {
@@ -115,7 +124,7 @@ public abstract class BaseCustomizableMetadata<A extends Attribute> extends Base
 				getAttributes().add(attribute);
 				attribute.setOwner(this);
 			}
-			
+
 		} else {
 			for (A existing : getActiveAttributes(attribute.getAttributeType())) {
 				if (existing.getAttributeType().equals(attribute.getAttributeType())) {
